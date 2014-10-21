@@ -71,7 +71,7 @@ function Localize() {
   this.getDefaultLocale = function() {
 
     return defaultLocale;
-  };
+  }
   /**
    * Get the defaultPath property
    *
@@ -93,7 +93,7 @@ function Localize() {
   this.getCurrentLocale = function() {
 
     return currentLocale;
-  };
+  }
   /**
    * Get the localization dictionary
    *
