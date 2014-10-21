@@ -15,7 +15,7 @@ function Localize() {
      * @private
      * @type {string}
      */
-    currentLocale = 'EN',
+    currentLocale = 'en-US',
     /**
      * The default context or module to use for fetching content. Optional.
      *
@@ -31,7 +31,7 @@ function Localize() {
      * @private
      * @type {string}
      */
-    defaultLocale = 'EN',
+    defaultLocale = 'en-US',
     /**
      * The default base path for the endpoint/static files which will deliver the content.
      *
@@ -238,6 +238,33 @@ Localize.prototype.setupLocalize = function(options) {
 
       }
 
+    }
+
+    // FOR IE8: Add "indexOf" method to Array prototype
+    if (!Array.prototype.indexOf) {
+
+      Array.prototype.indexOf = function(elt, from) {
+
+        var len = this.length >>> 0,
+            from = Number(arguments[1]) || 0;
+
+        from = (from < 0) ? Math.ceil(from) : Math.floor(from);
+
+        if (from < 0) {
+
+          from += len;
+        }
+
+        for ( ; from < len; from++ ) {
+
+          if (from in this && this[from] === elt) {
+
+            return from;
+          }
+        }
+
+        return -1;
+      }
     }
 
     // If an Ember app is present and is using Handlebars, register a helper for use in templates
