@@ -1,3 +1,4 @@
+/* global window, document, Ember */
 /**
  * A small, easy-to-use client-side localization module
  *
@@ -60,7 +61,7 @@ function Localize() {
   this.getDefaultContext = function() {
 
     return defaultContext;
-  }
+  };
   /**
    * Get the defaultLocale property
    *
@@ -71,7 +72,7 @@ function Localize() {
   this.getDefaultLocale = function() {
 
     return defaultLocale;
-  }
+  };
   /**
    * Get the defaultPath property
    *
@@ -82,7 +83,7 @@ function Localize() {
   this.getDefaultPath = function() {
 
     return defaultPath;
-  }
+  };
   /**
    * Get the locale property
    *
@@ -93,7 +94,7 @@ function Localize() {
   this.getCurrentLocale = function() {
 
     return currentLocale;
-  }
+  };
   /**
    * Get the localization dictionary
    *
@@ -111,10 +112,8 @@ function Localize() {
     } else {
 
       return dictionary[currentLocale];
-
     }
-
-  }
+  };
   /**
    * Allows setting of the default path during setup
    *
@@ -125,7 +124,7 @@ function Localize() {
   this.setDefaultPath = function(path) {
 
     defaultPath = path;
-  }
+  };
   /**
    * Allows setting of the current locale
    *
@@ -136,7 +135,7 @@ function Localize() {
   this.setCurrentLocale = function(newLocale) {
 
     currentLocale = newLocale;
-  }
+  };
   /**
    * Allows setting the default context for fetching content modules
    *
@@ -147,7 +146,7 @@ function Localize() {
   this.setDefaultContext = function(newContext) {
 
     defaultContext = newContext;
-  }
+  };
   /**
    * Allows setting of the current dictionary
    *
@@ -163,21 +162,18 @@ function Localize() {
       if ( !dictContext ) {
 
         dictContext = defaultContext;
-
       }
 
       // If the current locale han't been set up in the dictionary, create it
       if (dictionary[currentLocale] === undefined) {
 
         dictionary[currentLocale] = {};
-
       }
 
       // If this particular context hasn't been created in the dictionary, create it
       if (dictionary[currentLocale][dictContext] === undefined) {
 
         dictionary[currentLocale][dictContext] = {};
-
       }
 
       // Iterate over each property in the content to ensure we are setting them
@@ -185,7 +181,6 @@ function Localize() {
       for ( var prop in content ) {
 
         dictionary[currentLocale][dictContext][prop] = content[prop];
-
       }
 
     } else {
@@ -193,12 +188,9 @@ function Localize() {
       if ( window.console && console.error ) {
 
         console.error('[Localize.setDict] : Unable to set dictionary; missing required content');
-
       }
-
     }
-
-  }
+  };
 }
 
 /**
@@ -215,29 +207,27 @@ Localize.prototype.setupLocalize = function(options) {
 
   try {
 
+    var registerHelper = null;
+
     // Override defaults
     if (options) {
 
       // Check to see if a locale has been specified
       if ( options.currentLocale && typeof options.currentLocale === "string" && options.currentLocale.length === 2 ) {
 
-        this.setCurrentLocale(options.currentLocale)
-
+        this.setCurrentLocale(options.currentLocale);
       }
 
       // Check to see if a basePath has been specified
       if ( options.basePath && typeof options.basePath  === "string" ) {
 
         this.setDefaultPath(options.basePath);
-
       }
 
       if ( options.defaultContext ) {
 
         this.setDefaultContext(options.defaultContext);
-
       }
-
     }
 
     // FOR IE8: Add "indexOf" method to Array prototype
@@ -245,8 +235,8 @@ Localize.prototype.setupLocalize = function(options) {
 
       Array.prototype.indexOf = function(elt, from) {
 
-        var len = this.length >>> 0,
-            from = Number(arguments[1]) || 0;
+        var len = this.length >>> 0;
+        from = Number(arguments[1]) || 0;
 
         from = (from < 0) ? Math.ceil(from) : Math.floor(from);
 
@@ -264,13 +254,23 @@ Localize.prototype.setupLocalize = function(options) {
         }
 
         return -1;
-      }
+      };
     }
 
     // If an Ember app is present and is using Handlebars, register a helper for use in templates
     if ( window.Ember && window.Ember.Handlebars ) {
 
-      Ember.Handlebars.registerHelper('localize', function(property, options){
+      // Account for Ember CLI helpers
+      if ( Ember.Handlebars.registerBoundHelper ) {
+
+        registerHelper = Ember.Handlebars.registerBoundHelper;
+
+      } else {
+
+        registerHelper = Ember.Handlebars.registerHelper;
+      }
+
+      registerHelper('localize', function(property, options){
 
         var params = options.hash,
             self = this;
@@ -281,22 +281,17 @@ Localize.prototype.setupLocalize = function(options) {
         });
 
         return Localize.fetch(property, params);
-
       });
-
     }
 
-  } catch (e) {
+  } catch (ex) {
 
     if (options.log && window.console && console.error) {
 
-      console.error(e);
-
+      console.error(ex);
     }
-
   }
-
-}
+};
 
 /**
  * Get localizated for the specified module using the current locale
@@ -315,9 +310,13 @@ Localize.prototype.getLocalizedData = function(options) {
   try {
 
     var currentLocale = this.getCurrentLocale(),
+        data = null,
+        localize = this,
         localizeContext = options.context || 'general',
-        self = this,
-        url = '';
+        request = new window.XMLHttpRequest(),
+        url = '',
+        urlBase = '',
+        urlSuffix = '';
 
     // If a full path has been specified, set the url of the ajax call here
     if (options.fullPath) {
@@ -331,13 +330,42 @@ Localize.prototype.getLocalizedData = function(options) {
 
       // construct the path to the locale content (endpoint or file)
       url = urlBase + urlSuffix;
-
     }
 
-    $.ajax(
+    request.open('GET', url, true);
+
+    request.onreadystatechange = function() {
+
+      if (this.readyState === 4) {
+
+        if (this.status >= 200 && this.status < 400) {
+
+          // Success!
+          data = JSON.parse(this.responseText);
+          localize.setDict(data, localizeContext);
+
+          if (options.log && window.console && console.info) {
+
+            console.info('[Localize.getLocalizedData] : Successfully fetched locale file for ' + currentLocale + ': ' + options.context);
+          }
+        } else {
+
+          if (options.log && window.console && console.error) {
+
+            console.error('[Localize.getLocalizedData] : Failed to fetch locale file for ' + currentLocale + ': ' + options.context);
+            console.error(this.responseText);
+          }
+        }
+      }
+    };
+
+    request.send();
+    request = null;
+
+    /*$.ajax(
       {
         async: false,
-        context: self,
+        context: localize,
         url: url,
         success: function(data) {
 
@@ -355,26 +383,20 @@ Localize.prototype.getLocalizedData = function(options) {
 
             console.error('[Localize.getLocalizedData] : Failed to fetch locale file for ' + currentLocale + ': ' + options.context);
             console.error(error);
-
           }
 
         }
 
       }
-    );
-
-
-  } catch (e) {
+    );*/
+  } catch (ex) {
 
     if (options.log && window.console && console.error) {
 
-      console.error(e);
-
+      console.error(ex);
     }
-
   }
-
-}
+};
 
 /**
  * Fetch the localized text for a particular key.
@@ -390,6 +412,7 @@ Localize.prototype.fetch = function(key, params, log) {
   try {
 
     var i = 0,
+        lookup = null,
         newKey = '',
         outputText = '',
         self = this;
@@ -405,13 +428,11 @@ Localize.prototype.fetch = function(key, params, log) {
       } else if ( typeof params === 'object') {
 
         log = false;
-
       }
 
     } else if ( arguments && arguments.length === 1 ) {
 
       log = false;
-
     }
 
     lookup = function(lookupKey) {
@@ -430,7 +451,7 @@ Localize.prototype.fetch = function(key, params, log) {
 
           for (i=0; i < splitPath.length; i++ ) {
 
-            var currentPath = splitPath[i];
+            currentPath = splitPath[i];
 
             if ( outputText[currentPath] === undefined || outputText[currentPath] === 'undefined' ) {
 
@@ -440,26 +461,20 @@ Localize.prototype.fetch = function(key, params, log) {
             } else {
 
               outputText = outputText[currentPath];
-
             }
-
           }
 
-        } catch (e) {
+        } catch (ex) {
 
           outputText = '[missing translation for ' + self.getCurrentLocale() + '.' + lookupKey + ']';
 
           if ( log && window.console && console.error ) {
 
-            console.error(e);
-
+            console.error(ex);
           }
-
         }
-
       }
-
-    }
+    };
 
     if (key && typeof key === 'string') {
 
@@ -468,37 +483,30 @@ Localize.prototype.fetch = function(key, params, log) {
       if ( typeof outputText !== 'object' && outputText.indexOf('ref:') !== -1 ) {
 
         newKey = outputText.split('ref:')[1];
-
         lookup(newKey);
-
       }
 
       return outputText;
 
     } else {
 
-      outputText = '[missing translation for ' + self.getCurrentLocale() + '.' + lookupKey + ']';
-      return outputText;
-
       if (log && window.console && console.error) {
 
         console.error('[Localize.fetch] : The localization key is either missing or not a valid string');
-
       }
 
+      outputText = '[missing translation for ' + self.getCurrentLocale() + '.' + key + ']';
+      return outputText;
     }
 
-  } catch (e) {
+  } catch (ex) {
 
     if (log && window.console && console.error) {
 
-      console.error(e);
-
+      console.error(ex);
     }
-
   }
-
-}
+};
 
 /**
  * Designed to scan for HTML elements with a particular class
@@ -518,29 +526,28 @@ Localize.prototype.replaceAll = function(options) {
   try {
 
     var i = 0,
+        currentNode = null,
         docFrag = {},
         els = [],
+        localizeContext = '',
         localizeKey = '',
-        parentNode = {},
+        outputNodes = [],
         replacementText = '',
-        usePolyfill = false;
+        tempDiv = null;
 
     if ( options && !options.replacementClassName ) {
 
       options.replacementClassName = 'localize-me';
-
     }
 
     if ( options && !options.replacementModule ) {
 
       options.replacementModule = this.getDefaultContext();
-
     }
 
     if ( options && !options.log ) {
 
       options.log = false;
-
     }
 
     // Only define this if it doesn't exist yet
@@ -561,15 +568,11 @@ Localize.prototype.replaceAll = function(options) {
           if ( regEx.test(elements[i].className) ) {
 
             nodes.push(elements[i]);
-
           }
-
         }
 
         return nodes;
-
-      }
-
+      };
     }
 
     // Get array of matching elements
@@ -595,17 +598,14 @@ Localize.prototype.replaceAll = function(options) {
           if (options.log && window.console && console.info) {
 
             console.info('[Localize.replaceAll] : Aborting replacement:' + replacementText);
-
           }
 
           continue;
-
         }
 
-        if ( replacementText == undefined ) {
+        if ( replacementText === undefined ) {
 
           replacementText = '[missing translation for ' + this.getCurrentLocale() + '.' + localizeKey + ']';
-
         }
 
         // This trick allows us to construct a series of HTML nodes from a plaintext string.
@@ -617,12 +617,10 @@ Localize.prototype.replaceAll = function(options) {
         while (outputNodes.length > 0 ) {
 
           docFrag.appendChild(outputNodes[0]);
-
         }
 
         // Replace the original tag with the localized text or HTML
         currentNode.parentNode.replaceChild(docFrag, currentNode);
-
       }
 
     } else {
@@ -630,19 +628,14 @@ Localize.prototype.replaceAll = function(options) {
       if (options.log && window.console && console.info) {
 
         console.info('[Localize.replaceAll] : No replacment performed; no elements in the DOM were found for the class name ' + options.replacementClassName + '.');
-
       }
-
     }
 
-  } catch (e) {
+  } catch (ex) {
 
     if (options.log && window.console && console.error) {
 
-      console.error(e);
-
+      console.error(ex);
     }
-
   }
-
-}
+};

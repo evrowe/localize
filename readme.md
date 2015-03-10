@@ -1,10 +1,6 @@
 #Localize.js
 
-Localize.js is a lightweight client-side library meant to enable easy localization in client-side web applications. Localization dictionaries can be sourced from an API or a local file.
-
-##Dependencies
-
-Currently, Localize.js is dependent on some version of jQuery being present in order to perform the AJAX request to fetch localized text from an arbitrary source. This dependency will be removed in a future release.
+Localize.js is a lightweight client-side library meant to enable easy localization in client-side web applications. Localization dictionaries can be sourced from an API or a local file. Supports All modern browsers and IE8+
 
 ##Usage
 
